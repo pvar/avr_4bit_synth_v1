@@ -1,0 +1,174 @@
+
+
+ MCU clock source = 8MHz crystall
+
+
+========================================================================================
+ LED DIMMING
+========================================================================================
+
+# timer/counter1 overflow: LED dimming
+
+- dimming cycle duration = 2sec
+
+- dimming levels = 16
+
+- dimming level time = 2/16sec
+
+- dimming level-change frequency = 8Hz
+
+- prescaller = 1/256
+
+- starting value = MAX - (dimming_level << 2)
+
+- next starting value = MAX - (64 - (dimming_level << 2))
+
+
+- change dimming_level per 120 overflows
+
+- check button per 120 overflows
+
+
+
+========================================================================================
+ WAVEFORM GENERATION
+========================================================================================
+
+# timer/counter0 overflow: waveform generation
+
+- prescaller set to 1/8
+- initial counter value: 224
+- counting stages: 255 - 224 = 31
+
+- clock ticks until overflow: 31 * 8 = 248
+- new sample per 248 clock ticks
+
+- sample frequency = clock_frequency / ticks_per_sample = 32258Hz
+
+- signal frequency = sample frequency / samples_per_period
+
+- phase_delta is 12bits long
+- phase_accumulator is 16bits long
+- maximum value for phase_accumulator is 65535
+
+- samples_per_period = phase_accumulator_MAX / phase_delta = 65535 / phase_delta
+
+- signal frequency = sample frequency / (phase_accumulator_MAX / phase_delta)
+- signal frequency = 32258 / (65535 / phase_delta) ~= 0,5 * phase_delta
+
+
+
+========================================================================================
+ TICK-SUB-DIVISIONS OF METRONOME
+========================================================================================
+
+# timer/counter1 compare match: metronome tick-sub-divisions
+
+- prescaller set to 1/256
+- compare value: 130
+- clock ticks until tick-sub-division: 256 * 130 = 33280
+
+- compare match frequency = system_clock / prescaller / 260 ~= 120Hz
+
+- frequency of metronome tick-sub-divisions ~= 120Hz
+
+
+
+========================================================================================
+ TICKS OF METRONOME
+========================================================================================
+
+# metronome ticks every XYZ tick-sub-divisions (timer/counter1 compare matches)
+
+- XYZ: number of tick-sub-divisions in a tick
+- XYZ: determines metronome ticking frequency (tempo)
+
+- metronome frequency (Hz) = compare match frequency / XYZ
+- metronome frequency (bpm) = 60 * compare match frequency / XYZ
+
+- for XYZ = 80: metronome frequency ~= 1.5Hz = 90bpm
+- for XYZ = 60: metronome frequency ~= 2Hz   = 120bpm
+- for XYZ = 48: metronome frequency ~= 2.5Hz = 150bpm
+- for XYZ = 40: metronome frequency ~= 3Hz   = 180bpm
+
+- one metronome tick equals 1/4 of note duration, for given tempo
+
+
+
+========================================================================================
+ NOTE DURATION
+========================================================================================
+
+# each note is played for KLM tick-sub-divisions
+
+- KLM is derived from desired tempo and note duration
+
+# 90bpm
+- KLM = 160: 1/2 duration
+- KLM = 80:  1/4 duration
+- KLM = 40:  1/8 duration
+- KLM = 20:  1/16 duration
+- KLM = 10:  1/32 duration
+
+# 120bpm
+- KLM = 120: 1/2 duration
+- KLM = 60:  1/4 duration
+- KLM = 30:  1/8 duration
+- KLM = 15:  1/16 duration
+- KLM = 7:   1/32 duration
+
+# 150bpm
+- KLM = 96: 1/2 duration
+- KLM = 48: 1/4 duration
+- KLM = 24:	1/8 duration
+- KLM = 12: 1/16 duration
+- KLM = 6:  1/32 duration
+
+# 180bpm
+- KLM = 80: 1/2 duration
+- KLM = 40: 1/4 duration
+- KLM = 20: 1/8 duration
+- KLM = 10: 1/16 duration
+- KLM = 5:  1/32 duration
+
+
+
+========================================================================================
+ VOLUME ENVELOPE
+========================================================================================
+
+- only applied on channels 1, 2 & 4
+
+- volume increases from 7 to 11 and then 15
+
+- volume decreases from 15 to 14 to 13 to...5 to 4 to 3
+
+
+
+========================================================================================
+ CHANNEL 3 (4BIT TRIANGLE) - SPECIFICS
+========================================================================================
+
+- the values for the triangle wave are derived from the high nibble of high byte of phase accumulator
+
+- if msb of nibble is 0, the remaining three bits, along with a preceding zero, are XORed with "0001"
+
+- if msb of nibble is 1, the remaining three bits, along with a preceding zero, are XORed with "1110"
+
+- in this manner, the first 8 values are rising to 1111 and the next 8 are falling down to 0000
+
+
+========================================================================================
+ CHANNEL 4 (LFSR WHITE NOISE) - SPECIFICS
+========================================================================================
+
+- white noise frequency has no meaning (noise has no period / occupies spectrum uniformly)
+
+- a new sample is generated when phase accumulator overflows (carry set after adding phase delta)
+
+- phase accumulator and carry form a greater phase accumulator of 17bits (lg_phase_accumulator)
+
+- new sample frequency = sampling frequency / lg_phase_accumulator / phase_delta
+
+- sample frequency = sampling frequency / 131071 / phase_delta ~= 0.246 * phase_delta
+
